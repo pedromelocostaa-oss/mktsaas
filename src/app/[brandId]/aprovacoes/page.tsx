@@ -36,7 +36,7 @@ export default async function AprovacoesPage({
   const resp = posts.filter((p) => p.review?.state && p.review.state !== "PENDING");
 
   return (
-    <div className="p-6 max-w-[920px] mx-auto space-y-4">
+    <div data-onboarding="aprovacoes-area" className="p-6 max-w-[920px] mx-auto space-y-4">
       <div>
         <h1 style={{ fontFamily: "var(--font-serif)", fontSize: 26 }}>Aprovações</h1>
         <p className="text-[13px] text-[var(--color-muted)] mt-1 max-w-[68ch] leading-relaxed">

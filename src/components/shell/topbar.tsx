@@ -207,8 +207,10 @@ export function TopBar({ currentBrand, brands, postsParaShare }: Props) {
         </div>
       </div>
 
-      <Btn onClick={() => setShareOpen(true)}>Compartilhar</Btn>
-      <Btn kind="primary" onClick={novoPost} disabled={criando}>
+      <Btn data-onboarding="btn-compartilhar" onClick={() => setShareOpen(true)}>
+        Compartilhar
+      </Btn>
+      <Btn data-onboarding="btn-novo-post" kind="primary" onClick={novoPost} disabled={criando}>
         + Novo post
       </Btn>
 

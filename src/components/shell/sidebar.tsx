@@ -36,6 +36,7 @@ export function Sidebar({ brandId, pendentes = 0, metricasHa }: Props) {
 
   return (
     <nav
+      data-onboarding="sidebar"
       className="flex flex-col shrink-0 h-screen text-white"
       style={{ width: 228, background: "var(--color-ink)" }}
     >

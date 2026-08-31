@@ -53,7 +53,7 @@ export function CalendarioShell({ brand, ancora, modo, query, posts }: Props) {
   }
 
   return (
-    <div className="p-6 max-w-[1240px] mx-auto">
+    <div data-onboarding="calendario-area" className="p-6 max-w-[1240px] mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h1 style={{ fontFamily: "var(--font-serif)", fontSize: 26 }}>{titulo}</h1>

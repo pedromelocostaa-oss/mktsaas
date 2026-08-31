@@ -8,6 +8,8 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { TopBar } from "@/components/shell/topbar";
 import { ToastProvider } from "@/components/ui/toast";
 import { requireTenant } from "@/server/tenant";
+import { db } from "@/server/db";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
 
 export default async function AppLayout({
   children,
@@ -50,6 +52,13 @@ export default async function AppLayout({
     networks: p.targets.map((t) => t.network),
   }));
 
+  // Onboarding — só aparece no primeiro acesso do membro.
+  const member = await db.member.findFirst({
+    where: { userId: session.user.id, organizationId: brand.organizationId },
+    select: { onboardingDone: true },
+  });
+  const mostrarOnboarding = member ? !member.onboardingDone : false;
+
   return (
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
@@ -61,6 +70,7 @@ export default async function AppLayout({
           </main>
         </div>
       </div>
+      {mostrarOnboarding && <OnboardingProvider brandId={brandId} show />}
     </ToastProvider>
   );
 }
