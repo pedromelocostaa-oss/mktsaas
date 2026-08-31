@@ -62,6 +62,8 @@ export default async function Home() {
     }
   }
 
+  if (!membership) redirect("/entrar");
+
   const brand = await db.brand.findFirst({
     where: { organizationId: membership.organizationId, archivedAt: null },
     orderBy: { createdAt: "asc" },
