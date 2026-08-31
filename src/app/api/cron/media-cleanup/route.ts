@@ -3,16 +3,14 @@
 
 import { NextResponse } from "next/server";
 import { limparOrfaos } from "@/server/services/media-cleanup";
+import { autorizadoParaCron } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  const header = req.headers.get("x-cron-secret");
-  if (!secret) return NextResponse.json({ error: "CRON_SECRET não configurado." }, { status: 500 });
-  if (header !== secret) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
+  const a = autorizadoParaCron(req);
+  if (!a.ok) return NextResponse.json({ error: a.motivo }, { status: 401 });
   const r = await limparOrfaos();
   return NextResponse.json(r);
 }
