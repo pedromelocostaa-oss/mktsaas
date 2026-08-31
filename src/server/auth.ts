@@ -16,10 +16,26 @@ import { db } from "./db";
 
 const senhaFraca = /^(pauta|senha|password|admin|123456|qwerty)/i;
 
+// Lista de origens aceitas. Aceita qualquer *.vercel.app do projeto para não
+// quebrar toda vez que o Vercel gera um alias novo (preview branches etc).
+const trustedOrigins = [
+  "http://localhost:3000",
+  process.env.BETTER_AUTH_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null,
+  process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : null,
+  // aliases visíveis do projeto atual
+  "https://pauta-wheat.vercel.app",
+  "https://pauta-pedromelocostaagmailcoms-projects.vercel.app",
+  "https://pauta-git-main-pedromelocostaagmailcoms-projects.vercel.app",
+].filter((s): s is string => !!s);
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(db, { provider: "postgresql" }),
+  trustedOrigins,
 
   emailAndPassword: {
     enabled: true,
