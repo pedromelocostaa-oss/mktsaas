@@ -95,27 +95,40 @@ export function CalendarioShell({ brand, ancora, modo, query, posts }: Props) {
         </div>
       </div>
 
-      {posts.length === 0 ? (
+      {/* Busca vazia — sempre mostra a mensagem, sem o grid */}
+      {query && posts.length === 0 ? (
         <div className="bg-white rounded-[var(--radius-card)] shadow-[var(--shadow-card)] p-8">
-          {query ? (
-            <Empty
-              title="Nenhum post encontrado"
-              detail={`Não há nada em ${brand.name} que combine com “${query}”. Tente o nome da campanha, um trecho da legenda ou o nome da rede.`}
-            />
-          ) : (
-            <Empty
-              title={`O calendário de ${brand.name} está vazio`}
-              detail="Os posts que você criar aparecem aqui, na data e hora que marcar. Cada um mostra a rede, o estágio de produção e, se você pedir, quem precisa aprovar."
-              action={
-                <Link href={`/${brand.id}/calendario?post=novo`}>
-                  <Btn kind="primary">Criar o primeiro post</Btn>
-                </Link>
-              }
-            />
-          )}
+          <Empty
+            title="Nenhum post encontrado"
+            detail={`Não há nada em ${brand.name} que combine com “${query}”. Tente o nome da campanha, um trecho da legenda ou o nome da rede.`}
+          />
         </div>
       ) : modo === "mes" ? (
-        <CalendarioMes brandId={brand.id} ancora={ancora} posts={posts} />
+        <>
+          <CalendarioMes brandId={brand.id} ancora={ancora} posts={posts} />
+          {posts.length === 0 && (
+            <div className="mt-4 flex items-center justify-between px-4 py-3 rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)]">
+              <div className="text-[13px] text-[var(--color-muted)]">
+                O calendário de {brand.name} está vazio. Crie o primeiro post pra ele aparecer aqui na data e hora que você marcar.
+              </div>
+              <Link href={`/${brand.id}/calendario?post=novo`}>
+                <Btn kind="primary">Criar o primeiro post</Btn>
+              </Link>
+            </div>
+          )}
+        </>
+      ) : posts.length === 0 ? (
+        <div className="bg-white rounded-[var(--radius-card)] shadow-[var(--shadow-card)] p-8">
+          <Empty
+            title={`O calendário de ${brand.name} está vazio`}
+            detail="Os posts que você criar aparecem aqui, na data e hora que marcar. Cada um mostra a rede, o estágio de produção e, se você pedir, quem precisa aprovar."
+            action={
+              <Link href={`/${brand.id}/calendario?post=novo`}>
+                <Btn kind="primary">Criar o primeiro post</Btn>
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <CalendarioLista brandId={brand.id} posts={posts} />
       )}
