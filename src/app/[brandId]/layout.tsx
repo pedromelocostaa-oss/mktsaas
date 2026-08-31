@@ -7,6 +7,7 @@ import { listarBrandsAtivas, pegarBrand } from "@/server/services/queries";
 import { Sidebar } from "@/components/shell/sidebar";
 import { TopBar } from "@/components/shell/topbar";
 import { ToastProvider } from "@/components/ui/toast";
+import { requireTenant } from "@/server/tenant";
 
 export default async function AppLayout({
   children,
@@ -24,10 +25,16 @@ export default async function AppLayout({
 
   const brands = await listarBrandsAtivas();
 
+  // Contagem de aprovações pendentes para o badge do menu.
+  const t = await requireTenant();
+  const pendentes = await t.post.count({
+    where: { brandId, archivedAt: null, review: { is: { state: "PENDING" } } },
+  });
+
   return (
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar brandId={brandId} pendentes={0} />
+        <Sidebar brandId={brandId} pendentes={pendentes} />
         <div className="flex-1 flex flex-col min-w-0">
           <TopBar currentBrand={brand} brands={brands} />
           <main className="flex-1 overflow-y-auto" style={{ background: "var(--color-bg)" }}>

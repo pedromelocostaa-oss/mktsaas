@@ -13,6 +13,7 @@ import { Btn } from "@/components/ui/btn";
 import { Chip } from "@/components/ui/chip";
 import { netMeta, STAGE_LABEL, STAGE_COLOR, REVIEW_LABEL, NETWORKS } from "@/lib/network";
 import { atualizarPost, agendarPost, arquivarPost, desarquivarPost, setTargetCaption } from "@/server/services/posts";
+import { pedirAprovacao, cancelarAprovacao } from "@/server/services/review";
 import { useToast } from "@/components/ui/toast";
 import { MediaPanel } from "@/components/post/media-panel";
 import type { Network } from "@prisma/client";
@@ -222,13 +223,12 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
             />
           </div>
 
-          {/* Aprovação — placeholder Fase 3, mas mostra estado atual */}
-          <div className="bg-white rounded-[var(--radius-card)] p-5">
-            <h3 className="text-[15px] font-semibold mb-2">Aprovação</h3>
-            <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">
-              O envio para aprovação chega na Fase 3. Por enquanto, quem publica direto pode agendar sem passar por revisão.
-            </p>
-          </div>
+          {/* Aprovação — Fase 3. */}
+          <AprovacaoBloco
+            postId={post.id}
+            review={post.review}
+            defaultApproverEmail={null}
+          />
 
           {/* Ações */}
           <div className="pt-2 space-y-2">
@@ -367,6 +367,154 @@ function TextosPorRede({
               + Texto próprio para {netMeta[net].label}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AprovacaoBloco({
+  postId,
+  review,
+  defaultApproverEmail,
+}: {
+  postId: string;
+  review: { state: "PENDING" | "APPROVED" | "CHANGES"; approverName: string; note: string | null } | null;
+  defaultApproverEmail: string | null;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [pending, startTransition] = useTransition();
+  const [ativo, setAtivo] = useState(!!review);
+  const [approverName, setApproverName] = useState(review?.approverName ?? "");
+  const [approverEmail, setApproverEmail] = useState(defaultApproverEmail ?? "");
+  const [link, setLink] = useState<string | null>(null);
+
+  function enviar() {
+    startTransition(async () => {
+      const r = await pedirAprovacao({ postId, approverName, approverEmail });
+      if (!r.ok) return toast.push({ text: r.error });
+      setLink(r.link);
+      toast.push({ text: `Pedido enviado para ${approverName}.` });
+      router.refresh();
+    });
+  }
+
+  function cancelar() {
+    startTransition(async () => {
+      const r = await cancelarAprovacao(postId);
+      if (!r.ok) return toast.push({ text: "Não deu para cancelar." });
+      setAtivo(false);
+      setLink(null);
+      router.refresh();
+    });
+  }
+
+  function copiar() {
+    if (!link) return;
+    navigator.clipboard.writeText(link);
+    toast.push({ text: "Link de aprovação copiado." });
+  }
+
+  return (
+    <div className="bg-white rounded-[var(--radius-card)] p-5">
+      <label className="flex gap-3 items-start cursor-pointer">
+        <input
+          type="checkbox"
+          checked={ativo}
+          onChange={(e) => {
+            const next = e.target.checked;
+            setAtivo(next);
+            if (!next && review) cancelar();
+          }}
+          disabled={pending}
+          className="mt-0.5"
+          style={{ accentColor: "var(--color-accent)" }}
+        />
+        <span className="flex-1">
+          <span className="block text-[15px] font-semibold">Este post precisa de aprovação</span>
+          <span className="block text-[13px] mt-1 text-[var(--color-muted)] leading-relaxed">
+            {ativo
+              ? "Fica bloqueado para agendamento até a pessoa responder."
+              : "Sem isso, o post vai de produção direto para agendado — que é como a maioria funciona."}
+          </span>
+        </span>
+      </label>
+
+      {ativo && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={approverName}
+              onChange={(e) => setApproverName(e.target.value)}
+              placeholder="Nome de quem aprova"
+              disabled={!!review}
+              className="text-[13px] px-3 py-2 bg-white border border-[var(--color-border)] rounded-[var(--radius-input-inline)] outline-none"
+            />
+            <input
+              value={approverEmail}
+              onChange={(e) => setApproverEmail(e.target.value)}
+              placeholder="E-mail"
+              type="email"
+              disabled={!!review}
+              className="text-[13px] px-3 py-2 bg-white border border-[var(--color-border)] rounded-[var(--radius-input-inline)] outline-none"
+            />
+          </div>
+
+          {review ? (
+            <div
+              className="text-[13px] px-3 py-2.5 rounded-[var(--radius-btn)]"
+              style={{
+                background:
+                  review.state === "PENDING"
+                    ? "var(--color-warn-bg)"
+                    : review.state === "APPROVED"
+                    ? "var(--color-accent-bg)"
+                    : "var(--color-danger-bg)",
+                color:
+                  review.state === "PENDING"
+                    ? "var(--color-warn)"
+                    : review.state === "APPROVED"
+                    ? "var(--color-accent-dark)"
+                    : "var(--color-danger)",
+              }}
+            >
+              {review.state === "PENDING" && `Aguardando ${review.approverName} responder.`}
+              {review.state === "APPROVED" && `${review.approverName} aprovou.`}
+              {review.state === "CHANGES" && `${review.approverName} pediu ajuste.`}
+            </div>
+          ) : (
+            <Btn
+              kind="primary"
+              onClick={enviar}
+              disabled={pending || approverName.trim().length < 2 || !/@/.test(approverEmail)}
+            >
+              {pending ? "Enviando…" : "Enviar pedido"}
+            </Btn>
+          )}
+
+          {link && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-sunken)] rounded-[var(--radius-input-inline)]">
+              <span className="text-[11px] text-[var(--color-muted)] truncate flex-1">{link}</span>
+              <button
+                type="button"
+                onClick={copiar}
+                className="text-[11px] font-semibold text-[var(--color-ink)] underline"
+              >
+                Copiar
+              </button>
+            </div>
+          )}
+
+          {review && (
+            <button
+              type="button"
+              onClick={cancelar}
+              className="text-[11px] text-[var(--color-muted)] underline"
+            >
+              Cancelar pedido
+            </button>
+          )}
         </div>
       )}
     </div>
