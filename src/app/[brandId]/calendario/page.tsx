@@ -116,9 +116,11 @@ function serializePostFull(p: any) {
     stage: p.stage as "IDEA" | "PRODUCTION" | "SCHEDULED" | "PUBLISHED",
     baseCaption: p.baseCaption as string,
     internalNote: p.internalNote as string,
-    targets: (p.targets as { network: string; caption: string | null }[]).map((t) => ({
+    targets: (p.targets as { id: string; network: string; caption: string | null; metricSource: string }[]).map((t) => ({
+      id: t.id,
       network: t.network as import("@prisma/client").Network,
       caption: t.caption,
+      metricSource: (t.metricSource as "API" | "MANUAL") ?? "API",
     })),
     review: p.review
       ? {

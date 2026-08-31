@@ -562,3 +562,22 @@ model AuditLog {
   @@map("audit_log")
   @@schema("pauta")
 }
+
+// ─────────────────────────────────────────────── OAuth (rede social)
+// State CSRF do OAuth de rede social. Guarda hash — o valor em claro
+// (novoToken) só existe no browser durante a viagem.
+
+model OAuthState {
+  stateHash      String   @id            // sha256 do state
+  organizationId String
+  brandId        String
+  userId         String
+  network        Network
+  expiresAt      DateTime                // 10 min
+
+  createdAt      DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("oauth_state")
+  @@schema("pauta")
+}

@@ -16,6 +16,7 @@ import { atualizarPost, agendarPost, arquivarPost, desarquivarPost, setTargetCap
 import { pedirAprovacao, cancelarAprovacao } from "@/server/services/review";
 import { useToast } from "@/components/ui/toast";
 import { MediaPanel } from "@/components/post/media-panel";
+import { ManualMetrics } from "@/components/post/manual-metrics";
 import { ShareModal } from "@/components/share/share-modal";
 import type { Network } from "@prisma/client";
 
@@ -26,7 +27,7 @@ interface PostFull {
   stage: "IDEA" | "PRODUCTION" | "SCHEDULED" | "PUBLISHED";
   baseCaption: string;
   internalNote: string;
-  targets: { network: Network; caption: string | null }[];
+  targets: { id: string; network: Network; caption: string | null; metricSource: "API" | "MANUAL" }[];
   review: { state: "PENDING" | "APPROVED" | "CHANGES"; approverName: string; note: string | null } | null;
   campanha: string | null;
   brandName: string;
@@ -205,6 +206,9 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
 
           {/* Mídia — Fase 2. Upload direto para R2. */}
           <MediaPanel postId={post.id} networks={nets} />
+
+          {/* Entrada manual de métricas — Fase 5. Só para redes MANUAL. */}
+          <ManualMetrics postId={post.id} targets={post.targets} />
 
           {/* Texto base + versões por rede */}
           <div className="bg-white rounded-[var(--radius-card)] p-5">

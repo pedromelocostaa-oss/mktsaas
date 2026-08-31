@@ -10,6 +10,8 @@ import {
   resolverShareLink,
   serializePublicPost,
 } from "@/server/services/share-public";
+import { redesInformadasAMao } from "@/server/services/metrics";
+import { netMeta } from "@/lib/network";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,7 @@ export default async function RelatorioPage({ params }: { params: Promise<{ toke
   registrarVisita(link.id);
   const posts = await listarPostsDoShare(link);
   const publicos = await Promise.all(posts.map((p) => serializePublicPost(p)));
+  const manuais = await redesInformadasAMao(link.brandId, link.rangeDays);
 
   const now = new Date();
   const inicio = new Date(now.getTime() - link.rangeDays * 24 * 60 * 60 * 1000);
@@ -92,12 +95,19 @@ export default async function RelatorioPage({ params }: { params: Promise<{ toke
       )}
 
       {/* Rodapé */}
-      <p className="mt-8 text-[11px] text-[var(--color-muted)] text-center">
+      <p className="mt-8 text-[11px] text-[var(--color-muted)] text-center leading-relaxed">
         Link somente leitura
         {link.expiresAt
           ? `, expira em ${link.expiresAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}`
           : ", sem data de expiração"}
-        . Este relatório mostra apenas números — não expõe anotações internas, colaboradores nem histórico de aprovação.
+        .
+        {manuais.length > 0 && (
+          <>
+            {" "}Números de {manuais.map((m) => netMeta[m].label).join(", ")}{" "}
+            foram informados manualmente pela equipe.
+          </>
+        )}
+        {" "}Este relatório mostra apenas números — não expõe anotações internas, colaboradores nem histórico de aprovação.
       </p>
     </PublicShell>
   );
