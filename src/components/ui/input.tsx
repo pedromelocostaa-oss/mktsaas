@@ -45,10 +45,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <div
       className={cn(
         "flex items-center gap-2.5 px-3 rounded-[var(--radius-btn)] transition-colors",
-        "bg-[var(--color-surface-sunken)]",
-        erro
-          ? "outline outline-2 outline-[var(--color-danger)] outline-offset-2"
-          : "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
+        "bg-[var(--color-surface-sunken)] focus-within:bg-[var(--color-border-hairline)]",
+        erro && "outline outline-2 outline-[var(--color-danger)] outline-offset-1",
       )}
     >
       {icon && <span className="shrink-0 text-[var(--color-muted-2)]">{icon}</span>}
@@ -76,10 +74,8 @@ export function Senha({ value, onChange, placeholder = "sua senha", erro, name, 
     <div
       className={cn(
         "flex items-center gap-2.5 px-3 rounded-[var(--radius-btn)] transition-colors",
-        "bg-[var(--color-surface-sunken)]",
-        erro
-          ? "outline outline-2 outline-[var(--color-danger)] outline-offset-2"
-          : "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
+        "bg-[var(--color-surface-sunken)] focus-within:bg-[var(--color-border-hairline)]",
+        erro && "outline outline-2 outline-[var(--color-danger)] outline-offset-1",
       )}
     >
       <span aria-hidden className="shrink-0 text-[var(--color-muted-2)]">
