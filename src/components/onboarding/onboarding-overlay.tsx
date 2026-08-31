@@ -1,18 +1,23 @@
 "use client";
 
 // Overlay escuro cobrindo toda a viewport, com um recorte (spotlight) na
-// posição do elemento alvo. Uso SVG mask — mais confiável que clip-path
-// para retângulo arredondado.
+// posição do elemento alvo. SVG mask.
+//
+// Modo `interativo`: quando true, o SVG tem pointer-events:none — cliques
+// passam através. Usado no passo do PostDrawer, para que os campos sejam
+// editáveis dentro do spotlight. Nos outros passos, `interativo` fica false
+// e o overlay bloqueia toda interação com a UI atrás.
 
 interface Props {
   rect: { x: number; y: number; width: number; height: number } | null;
   reducedMotion: boolean;
+  interativo?: boolean;
 }
 
 const PADDING = 8;
 const RADIUS = 16;
 
-export function OnboardingOverlay({ rect, reducedMotion }: Props) {
+export function OnboardingOverlay({ rect, reducedMotion, interativo }: Props) {
   const transition = reducedMotion
     ? undefined
     : "x 200ms ease-out, y 200ms ease-out, width 200ms ease-out, height 200ms ease-out";
@@ -20,7 +25,7 @@ export function OnboardingOverlay({ rect, reducedMotion }: Props) {
   return (
     <svg
       className="fixed inset-0 w-full h-full"
-      style={{ zIndex: 9998, pointerEvents: "auto" }}
+      style={{ zIndex: 9998, pointerEvents: interativo ? "none" : "auto" }}
       aria-hidden
     >
       <defs>

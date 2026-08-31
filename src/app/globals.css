@@ -110,3 +110,9 @@ html, body {
 .anim-slide-in { animation: slideIn 180ms ease-out; }
 .anim-pop-in   { animation: popIn 150ms ease-out; }
 .anim-rise-in  { animation: riseIn 160ms ease-out; }
+
+/* Onboarding — passo 2 do tour precisa que o PostDrawer fique acima do
+   overlay do onboarding (que está em z-index 9998). */
+body.onboarding-drawer-active [data-onboarding="post-drawer"] {
+  z-index: 9999 !important;
+}

@@ -1,7 +1,7 @@
 "use client";
 
-// Tooltip do onboarding — 380px max, título + texto + botões + progresso.
-// Focus autofocus no botão Próximo (acessibilidade).
+// Tooltip do onboarding — usado nos passos 2-5 (spotlight).
+// z-index 10000 (acima do overlay 9998 e do drawer 9999 no passo 2).
 
 import { useEffect, useRef } from "react";
 import { Btn } from "@/components/ui/btn";
@@ -12,8 +12,8 @@ interface Props {
   totalSteps: number;
   title: string;
   text: string;
-  isFirst: boolean;
-  isLast: boolean;
+  primaryLabel: string;
+  mostrarVoltar: boolean;
   onBack: () => void;
   onNext: () => void;
 }
@@ -24,8 +24,8 @@ export function OnboardingTooltip({
   totalSteps,
   title,
   text,
-  isFirst,
-  isLast,
+  primaryLabel,
+  mostrarVoltar,
   onBack,
   onNext,
 }: Props) {
@@ -44,7 +44,7 @@ export function OnboardingTooltip({
         top: position.top,
         left: position.left,
         width: "min(380px, calc(100vw - 32px))",
-        zIndex: 9999,
+        zIndex: 10000,
       }}
     >
       <div className="text-[12px] text-[var(--color-muted)] mb-2">
@@ -60,14 +60,14 @@ export function OnboardingTooltip({
       <p className="text-[14px] leading-relaxed text-[var(--color-ink-2)]">{text}</p>
 
       <div className="flex items-center gap-2 mt-5">
-        {!isFirst && (
+        {mostrarVoltar && (
           <Btn kind="ghost" onClick={onBack}>
             Voltar
           </Btn>
         )}
         <div className="flex-1" />
         <Btn kind="primary" ref={nextRef} onClick={onNext}>
-          {isLast ? "Começar a usar o Pauta" : "Próximo"}
+          {primaryLabel}
         </Btn>
       </div>
 
@@ -78,8 +78,8 @@ export function OnboardingTooltip({
             aria-hidden
             className="rounded-full"
             style={{
-              width: 6,
-              height: 6,
+              width: 8,
+              height: 8,
               background: i <= step ? "var(--color-ink)" : "var(--color-border)",
             }}
           />

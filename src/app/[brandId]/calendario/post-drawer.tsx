@@ -109,7 +109,7 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
 
   return (
     <Sheet open onOpenChange={fechar}>
-      <SheetContent>
+      <SheetContent data-onboarding="post-drawer">
         <SheetHeader>
           <div className="flex items-center gap-3 mb-3">
             <Chip variant="neutral" dotColor={STAGE_COLOR[post.stage]}>
