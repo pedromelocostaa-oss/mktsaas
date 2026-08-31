@@ -16,25 +16,51 @@ export default async function Home() {
     orderBy: { createdAt: "asc" },
   });
 
-  // Sem organização — cria uma automaticamente. O usuário edita o nome
-  // depois em Configurações → Equipe.
+  // Sem organização — tenta criar via Better Auth (que sincroniza a sessão);
+  // se falhar, cai no fallback e cria direto no banco (loop-safe).
   if (!membership) {
     const nome = session.user.name || session.user.email.split("@")[0];
     const slug = slugify(nome) + "-" + Math.random().toString(36).slice(2, 6);
-    const org = await auth.api.createOrganization({
-      body: { name: nome, slug, keepCurrentActiveOrganization: false },
-      headers: await headers(),
+    try {
+      const org = await auth.api.createOrganization({
+        body: { name: nome, slug, keepCurrentActiveOrganization: false },
+        headers: await headers(),
+      });
+      if (org) {
+        await db.member.updateMany({
+          where: { userId: session.user.id, organizationId: org.id },
+          data: { role: "OWNER" },
+        });
+      }
+    } catch (e) {
+      console.error("home: createOrganization falhou; caindo no fallback", e);
+    }
+
+    membership = await db.member.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "asc" },
     });
-    if (org) {
-      await db.member.updateMany({
-        where: { userId: session.user.id, organizationId: org.id },
-        data: { role: "OWNER" },
+
+    // Fallback total: cria org + membership diretamente. Nunca redireciona em loop.
+    if (!membership) {
+      const org = await db.organization.create({
+        data: {
+          id: "org_" + Math.random().toString(36).slice(2, 12),
+          name: nome,
+          slug,
+        },
+      });
+      await db.member.create({
+        data: {
+          id: "mem_" + Math.random().toString(36).slice(2, 12),
+          userId: session.user.id,
+          organizationId: org.id,
+          role: "OWNER",
+        },
       });
       membership = { organizationId: org.id } as unknown as typeof membership;
     }
   }
-
-  if (!membership) redirect("/entrar");
 
   const brand = await db.brand.findFirst({
     where: { organizationId: membership.organizationId, archivedAt: null },
@@ -46,11 +72,13 @@ export default async function Home() {
 }
 
 function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 32) || "conta";
+  return (
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 32) || "conta"
+  );
 }
