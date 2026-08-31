@@ -1,0 +1,564 @@
+// Pauta — schema completo (docs/02-modelo-de-dados.md) + tabelas do Better Auth.
+// Tudo mora no schema "pauta" para não colidir com outros projetos no mesmo banco.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["pauta"]
+}
+
+// ─────────────────────────────────────────────────────── Better Auth
+// Nomes de tabela em minúsculo por convenção do Better Auth.
+// User estende com productUpdates; Organization com timezone, plano, Stripe e
+// includedBrands. Session estende com activeOrganizationId (plugin de organização).
+
+model User {
+  id             String    @id
+  name           String
+  email          String    @unique
+  emailVerified  Boolean   @default(false)
+  image          String?
+  // Opt-in de novidades do produto — nunca vem marcado no cadastro.
+  productUpdates Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sessions       Session[]
+  accounts       Account[]
+  members        Member[]
+  invitations    Invitation[]
+  improvements   Improvement[]
+  votes          RoadmapVote[]
+  postCollaborations PostCollaborator[]
+
+  @@map("user")
+  @@schema("pauta")
+}
+
+model Session {
+  id                     String   @id
+  expiresAt              DateTime
+  token                  String   @unique
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  ipAddress              String?
+  userAgent              String?
+  userId                 String
+  // Plugin de organização: qual org está ativa para esta sessão.
+  activeOrganizationId   String?
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+  @@schema("pauta")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("account")
+  @@schema("pauta")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+  @@schema("pauta")
+}
+
+// ─────────────────────────────────────────── organização (Better Auth + Pauta)
+
+model Organization {
+  id                   String   @id
+  name                 String
+  slug                 String   @unique
+  logo                 String?
+  metadata             String?
+  createdAt            DateTime @default(now())
+
+  // extensões do Pauta
+  timezone             String   @default("America/Sao_Paulo")
+  plan                 Plan     @default(FREE)
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  includedBrands       Int      @default(3)
+
+  members              Member[]
+  invitations          Invitation[]
+  brands               Brand[]
+
+  @@map("organization")
+  @@schema("pauta")
+}
+
+enum Plan {
+  FREE
+  PRO
+
+  @@schema("pauta")
+}
+
+// Membership no domínio; "member" na tabela por padrão do Better Auth.
+model Member {
+  id             String   @id
+  userId         String
+  organizationId String
+  role           String   @default("EDITOR")  // OWNER | EDITOR | APPROVER
+  createdAt      DateTime @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("member")
+  @@schema("pauta")
+}
+
+model Invitation {
+  id             String   @id
+  organizationId String
+  email          String
+  role           String?
+  status         String   @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  inviterId      String
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+  @@schema("pauta")
+}
+
+// ────────────────────────────────────────────────────────── domínio
+
+model Brand {
+  id              String    @id @default(cuid())
+  organizationId  String
+  name            String
+  handle          String?
+  kind            BrandKind
+  defaultApprover String?
+  archivedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connections     SocialConnection[]
+  posts           Post[]
+  campaigns       Campaign[]
+  dailyMetrics    BrandDailyMetric[]
+  shareLinks      ShareLink[]
+
+  @@index([organizationId, archivedAt])
+  @@map("brand")
+  @@schema("pauta")
+}
+
+enum BrandKind {
+  COMPANY
+  PERSON
+
+  @@schema("pauta")
+}
+
+model SocialConnection {
+  id             String     @id @default(cuid())
+  organizationId String
+  brandId        String
+  network        Network
+  externalId     String
+  displayName    String?
+  // criptografado em repouso com AES-256-GCM (chave SOCIAL_TOKEN_KEY)
+  accessToken    String
+  refreshToken   String?
+  expiresAt      DateTime?
+  scopes         String[]
+  status         ConnStatus @default(ACTIVE)
+  lastSyncAt     DateTime?
+  lastSyncError  String?
+
+  brand          Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, network])
+  @@index([expiresAt])
+  @@map("social_connection")
+  @@schema("pauta")
+}
+
+enum Network {
+  INSTAGRAM
+  TIKTOK
+  FACEBOOK
+  YOUTUBE
+  LINKEDIN
+  X
+
+  @@schema("pauta")
+}
+
+enum ConnStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+
+  @@schema("pauta")
+}
+
+model Campaign {
+  id              String    @id @default(cuid())
+  organizationId  String
+  brandId         String
+  name            String
+  partnerName     String?
+  startsOn        DateTime?
+  endsOn          DateTime?
+  contractedPosts Int?
+
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  posts           Post[]
+
+  @@map("campaign")
+  @@schema("pauta")
+}
+
+model Post {
+  id             String    @id @default(cuid())
+  organizationId String
+  brandId        String
+  campaignId     String?
+  title          String
+  scheduledAt    DateTime
+  stage          Stage     @default(IDEA)
+  baseCaption    String    @default("")
+  // NUNCA sai em link público
+  internalNote   String    @default("")
+  createdById    String
+  archivedAt     DateTime?
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  targets        PostTarget[]
+  media          PostMedia[]
+  review         Review?
+  collaborators  PostCollaborator[]
+
+  @@index([brandId, scheduledAt])
+  @@index([organizationId, stage])
+  @@map("post")
+  @@schema("pauta")
+}
+
+enum Stage {
+  IDEA
+  PRODUCTION
+  SCHEDULED
+  PUBLISHED
+
+  @@schema("pauta")
+}
+
+model PostTarget {
+  id           String       @id @default(cuid())
+  postId       String
+  network      Network
+  caption      String?
+  externalId   String?
+  permalink    String?
+  metricSource MetricSource @default(API)
+
+  post         Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  snapshots    PostMetricSnapshot[]
+
+  @@unique([postId, network])
+  @@map("post_target")
+  @@schema("pauta")
+}
+
+enum MetricSource {
+  API
+  MANUAL
+
+  @@schema("pauta")
+}
+
+model PostMedia {
+  id           String    @id @default(cuid())
+  postId       String
+  kind         MediaKind
+  storageKey   String
+  mimeType     String
+  bytes        Int
+  width        Int?
+  height       Int?
+  durationMs   Int?
+  thumbnailKey String?
+  altText      String?
+  position     Int       @default(0)
+
+  post         Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, position])
+  @@map("post_media")
+  @@schema("pauta")
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+
+  @@schema("pauta")
+}
+
+model PostCollaborator {
+  postId String
+  userId String
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("post_collaborator")
+  @@schema("pauta")
+}
+
+// Aprovador externo NÃO vira User. Ele responde por token, sem conta.
+model Review {
+  id            String      @id @default(cuid())
+  postId        String      @unique
+  state         ReviewState @default(PENDING)
+  approverName  String
+  approverEmail String
+  // hash sha256(token), token em claro nunca vai para o banco
+  token         String      @unique
+  note          String?
+  sentAt        DateTime    @default(now())
+  respondedAt   DateTime?
+  expiresAt     DateTime
+  remindedAt    DateTime?
+
+  post          Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("review")
+  @@schema("pauta")
+}
+
+enum ReviewState {
+  PENDING
+  APPROVED
+  CHANGES
+
+  @@schema("pauta")
+}
+
+model BrandDailyMetric {
+  id             String       @id @default(cuid())
+  brandId        String
+  network        Network
+  date           DateTime     @db.Date
+  reach          Int          @default(0)
+  engagement     Int          @default(0)
+  followers      Int          @default(0)
+  followersDelta Int          @default(0)
+  source         MetricSource @default(API)
+
+  brand          Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, network, date])
+  @@index([brandId, date])
+  @@map("brand_daily_metric")
+  @@schema("pauta")
+}
+
+// Nunca sobrescreva. Snapshot por coleta. Métrica que a rede descontinua fica no histórico.
+model PostMetricSnapshot {
+  id           String       @id @default(cuid())
+  postTargetId String
+  collectedAt  DateTime     @default(now())
+  reach        Int?
+  views        Int?
+  likes        Int?
+  comments     Int?
+  shares       Int?
+  saves        Int?
+  raw          Json?
+  source       MetricSource @default(API)
+
+  target       PostTarget   @relation(fields: [postTargetId], references: [id], onDelete: Cascade)
+
+  @@index([postTargetId, collectedAt])
+  @@map("post_metric_snapshot")
+  @@schema("pauta")
+}
+
+model ShareLink {
+  id             String    @id @default(cuid())
+  organizationId String
+  brandId        String
+  // hash sha256(token)
+  token          String    @unique
+  kind           ShareKind
+  postIds        String[]
+  baseline       Baseline  @default(PREVIOUS)
+  rangeDays      Int       @default(30)
+  // nulo = nunca; exige confirmação escrita
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdById    String
+  viewCount      Int       @default(0)
+  lastViewedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, revokedAt])
+  @@map("share_link")
+  @@schema("pauta")
+}
+
+enum ShareKind {
+  DASHBOARD
+  POSTS
+
+  @@schema("pauta")
+}
+
+enum Baseline {
+  PREVIOUS
+  AVG12W
+  LAST_YEAR
+
+  @@schema("pauta")
+}
+
+// ─────────────────────────────────────────────────── pedir melhorias
+
+model Improvement {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  title          String
+  body           String
+  screen         String?
+  context        Json?
+  roadmapItemId  String?
+  createdAt      DateTime @default(now())
+
+  author         User         @relation(fields: [authorId], references: [id])
+  roadmapItem    RoadmapItem? @relation(fields: [roadmapItemId], references: [id], onDelete: SetNull)
+
+  @@index([authorId, createdAt])
+  @@index([roadmapItemId])
+  @@map("improvement")
+  @@schema("pauta")
+}
+
+model RoadmapItem {
+  id           String        @id @default(cuid())
+  title        String
+  summary      String
+  status       RoadmapStatus @default(RECEIVED)
+  teamNote     String?
+  shippedAt    DateTime?
+  shippedNote  String?
+  voteCount    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  improvements Improvement[]
+  votes        RoadmapVote[]
+  updates      RoadmapUpdate[]
+
+  @@index([status, voteCount])
+  @@map("roadmap_item")
+  @@schema("pauta")
+}
+
+enum RoadmapStatus {
+  RECEIVED
+  REVIEWING
+  PLANNED
+  BUILDING
+  SHIPPED
+  WONT_DO
+
+  @@schema("pauta")
+}
+
+model RoadmapVote {
+  roadmapItemId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  item          RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roadmapItemId, userId])
+  @@map("roadmap_vote")
+  @@schema("pauta")
+}
+
+model RoadmapUpdate {
+  id            String        @id @default(cuid())
+  roadmapItemId String
+  status        RoadmapStatus
+  note          String?
+  createdAt     DateTime      @default(now())
+
+  item          RoadmapItem   @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+
+  @@map("roadmap_update")
+  @@schema("pauta")
+}
+
+// ─────────────────────────────────────────────────────── auditoria
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  // nulo quando a ação vem de link público
+  actorId        String?
+  action         String
+  targetType     String
+  targetId       String
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@map("audit_log")
+  @@schema("pauta")
+}

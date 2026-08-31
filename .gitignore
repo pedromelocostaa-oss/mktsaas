@@ -1,0 +1,29 @@
+# Next.js / Node
+node_modules/
+.next/
+out/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# tooling
+.DS_Store
+*.log
+.vercel
+.turbo
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Sentry
+.sentryclirc

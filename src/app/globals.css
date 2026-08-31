@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* ─────────── tokens do handoff — fonte de verdade em design/HANDOFF-DESIGN.md
+   Não invente valores. Se faltar, pare e pergunte. */
+
+@theme {
+  /* superfícies e bordas */
+  --color-bg: #F1EFE9;
+  --color-surface: #FFFFFF;
+  --color-surface-sunken: #FBFAF8;
+  --color-border: #DDD8CF;
+  --color-border-soft: #E7E3DB;
+  --color-border-hairline: #F1EFE9;
+
+  /* texto */
+  --color-ink: #1A1D24;
+  --color-ink-hover: #2C2F36;
+  --color-ink-2: #494842;
+  --color-muted: #63625D;
+  --color-muted-2: #8E8C86;
+  --color-nav-idle: #A9ACB4;
+
+  /* acento (verde) */
+  --color-accent: #0E6B4F;
+  --color-accent-dark: #0B5540;
+  --color-accent-light: #1A8763;
+  --color-accent-bg: #EDF5F1;
+  --color-accent-soft: #7FBBA3;
+
+  /* semânticos */
+  --color-warn: #8A5A0B;
+  --color-warn-bg: #F6EDDC;
+  --color-danger: #8F2E24;
+  --color-danger-bg: #F7E7E4;
+
+  /* redes sociais — pontos, barras, borda de chip */
+  --color-net-instagram: #8A3480;
+  --color-net-tiktok: #1B6068;
+  --color-net-facebook: #37489B;
+  --color-net-youtube: #A83B29;
+  --color-net-linkedin: #275480;
+  --color-net-x: #3F3F3D;
+
+  /* raio de canto */
+  --radius-pill: 999px;
+  --radius-modal: 20px;
+  --radius-card: 16px;
+  --radius-select-card: 14px;
+  --radius-btn: 12px;
+  --radius-input-inline: 10px;
+
+  /* sombras */
+  --shadow-card: 0 1px 2px rgba(26,29,36,.05), 0 8px 24px rgba(26,29,36,.05);
+  --shadow-dropdown: 0 2px 4px rgba(26,29,36,.06), 0 16px 40px rgba(26,29,36,.14);
+  --shadow-modal-day: 0 24px 60px rgba(26,29,36,.24);
+  --shadow-modal-share: 0 24px 60px rgba(26,29,36,.26);
+  --shadow-toast: 0 12px 32px rgba(26,29,36,.26);
+
+  /* tipografia */
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, serif;
+}
+
+/* Instrument Sans em toda UI; Newsreader só em números grandes e títulos. */
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* números comparáveis usam tabular-nums — obrigatório em métricas e horários */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* foco visível — todo botão, input, select */
+:where(button, [role="button"], a, input, select, textarea, [role="tab"], [role="menuitem"]):focus-visible {
+  outline: 2px solid var(--color-accent-light);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* movimento — desligar sob reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* animações do handoff */
+@keyframes slideIn {
+  from { transform: translateX(28px); opacity: .3; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes popIn {
+  from { transform: translateY(12px) scale(.98); opacity: 0; }
+  to   { transform: translateY(0)     scale(1);  opacity: 1; }
+}
+@keyframes riseIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.anim-slide-in { animation: slideIn 180ms ease-out; }
+.anim-pop-in   { animation: popIn 150ms ease-out; }
+.anim-rise-in  { animation: riseIn 160ms ease-out; }
