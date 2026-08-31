@@ -44,9 +44,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 px-3 bg-white border rounded-[var(--radius-btn)]",
-        erro ? "border-[var(--color-danger)]" : "border-[var(--color-border)]",
-        "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
+        "flex items-center gap-2.5 px-3 rounded-[var(--radius-btn)] transition-colors",
+        "bg-[var(--color-surface-sunken)]",
+        erro
+          ? "outline outline-2 outline-[var(--color-danger)] outline-offset-2"
+          : "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
       )}
     >
       {icon && <span className="shrink-0 text-[var(--color-muted-2)]">{icon}</span>}
@@ -73,9 +75,11 @@ export function Senha({ value, onChange, placeholder = "sua senha", erro, name, 
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 px-3 bg-white border rounded-[var(--radius-btn)]",
-        erro ? "border-[var(--color-danger)]" : "border-[var(--color-border)]",
-        "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
+        "flex items-center gap-2.5 px-3 rounded-[var(--radius-btn)] transition-colors",
+        "bg-[var(--color-surface-sunken)]",
+        erro
+          ? "outline outline-2 outline-[var(--color-danger)] outline-offset-2"
+          : "focus-within:outline focus-within:outline-2 focus-within:outline-[var(--color-accent-light)] focus-within:outline-offset-2",
       )}
     >
       <span aria-hidden className="shrink-0 text-[var(--color-muted-2)]">
@@ -119,6 +123,8 @@ export function Senha({ value, onChange, placeholder = "sua senha", erro, name, 
 }
 
 // A regra aparece enquanto a pessoa digita, não depois que ela erra (docs/04).
+// Enquanto o campo está vazio, tudo neutro. Ao começar a digitar, cada regra
+// pendente fica em vermelho — quem não está sendo cumprida se destaca.
 export function ForcaSenha({ v }: { v: string }) {
   const regras = [
     { ok: v.length >= 10, t: "pelo menos 10 caracteres" },
@@ -126,6 +132,7 @@ export function ForcaSenha({ v }: { v: string }) {
     { ok: !/^(senha|123456|qwerty|pauta|password|admin)/i.test(v), t: "não começa com algo óbvio" },
   ];
   const n = regras.filter((r) => r.ok).length;
+  const digitou = v.length > 0;
   return (
     <div className="mt-2">
       <div className="flex gap-1 mb-2">
@@ -145,18 +152,26 @@ export function ForcaSenha({ v }: { v: string }) {
         ))}
       </div>
       <div className="space-y-1">
-        {regras.map((r) => (
-          <div
-            key={r.t}
-            className="flex items-center gap-1.5 text-xs"
-            style={{ color: r.ok ? "var(--color-accent)" : "var(--color-muted)" }}
-          >
-            <span aria-hidden className="inline-block w-3">
-              {r.ok ? "✓" : ""}
-            </span>
-            {r.t}
-          </div>
-        ))}
+        {regras.map((r) => {
+          const cor = r.ok
+            ? "var(--color-accent)"
+            : digitou
+            ? "var(--color-danger)"
+            : "var(--color-muted)";
+          const icone = r.ok ? "✓" : digitou ? "✗" : "•";
+          return (
+            <div
+              key={r.t}
+              className="flex items-center gap-1.5 text-xs"
+              style={{ color: cor }}
+            >
+              <span aria-hidden className="inline-block w-3 text-center">
+                {icone}
+              </span>
+              {r.t}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
