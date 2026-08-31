@@ -113,11 +113,22 @@ function scoped(organizationId: string) {
 /** Server action helper: obtém a org ativa da sessão ou explode. */
 export async function requireTenant() {
   const session = await getServerSession();
-  const orgId = session?.session?.activeOrganizationId;
-  if (!session?.user || !orgId) {
-    // Não há org ativa — quem chama deve redirecionar para /entrar ou /nova-conta.
-    throw new UnauthorizedError();
+  if (!session?.user) throw new UnauthorizedError();
+
+  let orgId = session.session?.activeOrganizationId ?? null;
+
+  // Fallback: activeOrganizationId pode estar vazio logo após o primeiro
+  // login (BA não setou automaticamente). Usa o primeiro Membership do user.
+  if (!orgId) {
+    const first = await db.member.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "asc" },
+      select: { organizationId: true },
+    });
+    if (first) orgId = first.organizationId;
   }
+
+  if (!orgId) throw new UnauthorizedError();
   return scoped(orgId);
 }
 
