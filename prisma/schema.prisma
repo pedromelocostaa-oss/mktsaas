@@ -62,6 +62,10 @@ model Account {
   id                    String    @id
   accountId             String
   providerId            String
+  // Better Auth v1.4+ passou a gravar `issuer` (ex: "local:credential" ou o
+  // domínio do IdP) junto com providerId. Campo opcional para não bloquear
+  // rows antigas.
+  issuer                String?
   userId                String
   accessToken           String?
   refreshToken          String?
