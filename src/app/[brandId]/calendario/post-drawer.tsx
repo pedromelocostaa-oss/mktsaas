@@ -16,6 +16,7 @@ import { atualizarPost, agendarPost, arquivarPost, desarquivarPost, setTargetCap
 import { pedirAprovacao, cancelarAprovacao } from "@/server/services/review";
 import { useToast } from "@/components/ui/toast";
 import { MediaPanel } from "@/components/post/media-panel";
+import { ShareModal } from "@/components/share/share-modal";
 import type { Network } from "@prisma/client";
 
 interface PostFull {
@@ -37,6 +38,7 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
   const sp = useSearchParams();
   const toast = useToast();
   const [salvando, startTransition] = useTransition();
+  const [shareOpen, setShareOpen] = useState(false);
 
   const [titulo, setTitulo] = useState(post.title);
   const [quando, setQuando] = useState(toLocalInput(post.scheduledAt));
@@ -244,7 +246,7 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
                 Agendar publicação
               </Btn>
             ) : null}
-            <Btn full onClick={() => toast.push({ text: "Compartilhar chega na Fase 4." })}>
+            <Btn full onClick={() => setShareOpen(true)}>
               Compartilhar este post
             </Btn>
             <Btn kind="ghost" full onClick={arquivar} disabled={salvando}>
@@ -253,6 +255,23 @@ export function PostDrawer({ brandId, post }: { brandId: string; post: PostFull 
           </div>
         </SheetBody>
       </SheetContent>
+
+      <ShareModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        brandId={brandId}
+        brandName={post.brandName}
+        posts={[
+          {
+            id: post.id,
+            title: post.title,
+            scheduledAt: post.scheduledAt,
+            networks: post.targets.map((t) => t.network),
+          },
+        ]}
+        postsPreSelecionados={[post.id]}
+        tipoInicial="POSTS"
+      />
     </Sheet>
   );
 }

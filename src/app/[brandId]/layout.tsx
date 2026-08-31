@@ -31,12 +31,31 @@ export default async function AppLayout({
     where: { brandId, archivedAt: null, review: { is: { state: "PENDING" } } },
   });
 
+  // Posts recentes para o modal Compartilhar (POSTS escolhidas).
+  const postsRecentes = await t.post.findMany({
+    where: { brandId, archivedAt: null },
+    orderBy: { scheduledAt: "desc" },
+    take: 60,
+    select: {
+      id: true,
+      title: true,
+      scheduledAt: true,
+      targets: { select: { network: true } },
+    },
+  });
+  const postsParaShare = postsRecentes.map((p) => ({
+    id: p.id,
+    title: p.title,
+    scheduledAt: p.scheduledAt.toISOString(),
+    networks: p.targets.map((t) => t.network),
+  }));
+
   return (
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
         <Sidebar brandId={brandId} pendentes={pendentes} />
         <div className="flex-1 flex flex-col min-w-0">
-          <TopBar currentBrand={brand} brands={brands} />
+          <TopBar currentBrand={brand} brands={brands} postsParaShare={postsParaShare} />
           <main className="flex-1 overflow-y-auto" style={{ background: "var(--color-bg)" }}>
             {children}
           </main>

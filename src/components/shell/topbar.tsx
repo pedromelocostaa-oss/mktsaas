@@ -11,6 +11,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/lib/cn";
 import { criarIdeiaRapida } from "@/server/services/posts";
 import { useToast } from "@/components/ui/toast";
+import { ShareModal } from "@/components/share/share-modal";
 import type { Network } from "@prisma/client";
 import { netMeta } from "@/lib/network";
 
@@ -22,9 +23,17 @@ interface BrandLite {
   connections: { network: Network }[];
 }
 
+interface PostOpt {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  networks: Network[];
+}
+
 interface Props {
   currentBrand: BrandLite;
   brands: BrandLite[];
+  postsParaShare: PostOpt[];
 }
 
 const RANGES = [
@@ -33,7 +42,7 @@ const RANGES = [
   { value: "30", label: "30 dias" },
 ] as const;
 
-export function TopBar({ currentBrand, brands }: Props) {
+export function TopBar({ currentBrand, brands, postsParaShare }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -43,6 +52,7 @@ export function TopBar({ currentBrand, brands }: Props) {
   const [q, setQ] = useState(params.get("q") ?? "");
   const [range, setRange] = useState<"7" | "15" | "30">((params.get("r") as "7" | "15" | "30") ?? "30");
   const [criando, startTransition] = useTransition();
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Debounce da busca — atualiza a URL sem re-navegar.
   useEffect(() => {
@@ -197,10 +207,18 @@ export function TopBar({ currentBrand, brands }: Props) {
         </div>
       </div>
 
-      <Btn onClick={() => toast.push({ text: "Compartilhar chega na Fase 4." })}>Compartilhar</Btn>
+      <Btn onClick={() => setShareOpen(true)}>Compartilhar</Btn>
       <Btn kind="primary" onClick={novoPost} disabled={criando}>
         + Novo post
       </Btn>
+
+      <ShareModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        brandId={currentBrand.id}
+        brandName={currentBrand.name}
+        posts={postsParaShare}
+      />
     </header>
   );
 }
