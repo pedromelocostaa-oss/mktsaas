@@ -1,14 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/cron/metrics-collect", "schedule": "0 */6 * * *" },
+    { "path": "/api/cron/metrics-collect", "schedule": "0 3 * * *" },
     { "path": "/api/cron/connection-expiring", "schedule": "0 8 * * *" },
     { "path": "/api/cron/media-cleanup", "schedule": "30 3 * * *" }
-  ],
-  "headers": [
-    {
-      "source": "/api/cron/(.*)",
-      "headers": [{ "key": "x-vercel-protection-bypass", "value": "cron" }]
-    }
   ]
 }
