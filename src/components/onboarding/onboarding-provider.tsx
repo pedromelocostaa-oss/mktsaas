@@ -252,6 +252,13 @@ export function OnboardingProvider({ brandId, show }: { brandId: string; show: b
 
   if (!active || !mounted) return null;
 
+  // Enquanto o pathname não coincide com a rota do passo atual, não mostramos
+  // o overlay — só o useEffect acima dispara router.push(). Assim evitamos
+  // renderizar o spotlight/tooltip apontando para elementos que ainda não
+  // existem no DOM (o alvo do passo só existe na página correta).
+  const expected = `/${brandId}/${current.route}`;
+  if (pathname !== expected) return null;
+
   const overlay = (
     <>
       <OnboardingOverlay rect={rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null} reducedMotion={reducedMotion} />
