@@ -137,7 +137,10 @@ model Member {
   createdAt      DateTime @default(now())
   // Onboarding guiado (tour com spotlight). Vira true depois que o usuário
   // clica "Começar a usar o Pauta" no último passo.
-  onboardingDone Boolean  @default(false)
+  onboardingDone       Boolean @default(false)
+  // Onboarding Fase 2 — específico da página /configuracoes/redes.
+  // Explica quais redes conectam via API e quais são manuais.
+  onboardingRedesDone  Boolean @default(false)
 
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

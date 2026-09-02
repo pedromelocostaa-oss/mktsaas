@@ -10,10 +10,12 @@ export function RedesActions({
   brandId,
   network,
   conectada,
+  dataOnboarding,
 }: {
   brandId: string;
   network: Network;
   conectada: boolean;
+  dataOnboarding?: string;
 }) {
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -48,7 +50,7 @@ export function RedesActions({
     );
   }
   return (
-    <Btn onClick={conectar} disabled={pending}>
+    <Btn data-onboarding={dataOnboarding} onClick={conectar} disabled={pending}>
       {pending ? "…" : "Conectar"}
     </Btn>
   );
