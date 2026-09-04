@@ -1,10 +1,13 @@
-// Cron diário: avisa em 14/7/1 dias antes do token vencer (docs/05).
-// docs/05 exige que o texto do aviso diga a CONSEQUÊNCIA, não a ação.
+// Cron diário — despacha as notificações do dia:
+//   1. Conexão vencendo em 14/7/1 dias (docs/05).
+//   2. Véspera de publicação (docs/07 e-mail 2.9): posts agendados para amanhã.
+// Consolidado num único endpoint para não estourar a cota de crons do Hobby.
 
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { enviarEmail } from "@/server/email/send";
 import { autorizadoParaCron } from "@/lib/cron-auth";
+import { tmplVespera } from "@/server/email/templates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,7 +75,41 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ avisados });
+  // ── Véspera de publicação (docs/07 e-mail 2.9) ──
+  // Posts SCHEDULED cuja hora está entre agora+24h e agora+48h, autor com e-mail.
+  const veIni = new Date(agora + 24 * 60 * 60 * 1000);
+  const veFim = new Date(agora + 48 * 60 * 60 * 1000);
+  const vesperas = await db.post.findMany({
+    where: {
+      stage: "SCHEDULED",
+      archivedAt: null,
+      scheduledAt: { gte: veIni, lte: veFim },
+    },
+    take: 500,
+  });
+  const base =
+    process.env.BETTER_AUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "https://pauta-wheat.vercel.app";
+  let avisadosVespera = 0;
+  for (const p of vesperas) {
+    const autor = await db.user.findUnique({
+      where: { id: p.createdById },
+      select: { name: true, email: true },
+    });
+    if (!autor?.email) continue;
+    const horaPt = p.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const t = tmplVespera({
+      autorNome: autor.name,
+      postTitle: p.title,
+      horaPt,
+      link: `${base}/${p.brandId}/calendario?post=${p.id}`,
+    });
+    await enviarEmail({ to: autor.email, subject: t.subject, html: t.html, text: t.text }).catch(() => {});
+    avisadosVespera++;
+  }
+
+  return NextResponse.json({ avisados, avisadosVespera });
 }
 
 export async function GET(req: Request) {

@@ -25,6 +25,9 @@ model User {
   image          String?
   // Opt-in de novidades do produto — nunca vem marcado no cadastro.
   productUpdates Boolean   @default(false)
+  // Superadmin (operador da plataforma, não da conta do cliente).
+  // Bootstrap: SET via SQL para o e-mail do fundador.
+  isSuperAdmin   Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

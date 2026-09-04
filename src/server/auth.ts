@@ -13,6 +13,8 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
+import { enviarEmail } from "./email/send";
+import { tmplBoasVindas, tmplResetSenha, tmplVerificar } from "./email/templates";
 
 const senhaFraca = /^(pauta|senha|password|admin|123456|qwerty)/i;
 
@@ -45,9 +47,32 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     autoSignIn: false,
     sendResetPassword: async ({ user, url }) => {
-      // TODO Fase 9: Resend + React Email. Por enquanto, log.
-      // eslint-disable-next-line no-console
-      console.log(`[email:reset] para=${user.email} url=${url}`);
+      const t = tmplResetSenha({ nome: user.name, url });
+      await enviarEmail({ to: user.email, subject: t.subject, html: t.html, text: t.text });
+    },
+  },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: false,
+    sendVerificationEmail: async ({ user, url }) => {
+      const t = tmplVerificar({ nome: user.name, url });
+      await enviarEmail({ to: user.email, subject: t.subject, html: t.html, text: t.text });
+    },
+  },
+
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          const base =
+            process.env.BETTER_AUTH_URL ??
+            process.env.NEXT_PUBLIC_APP_URL ??
+            "https://pauta-wheat.vercel.app";
+          const t = tmplBoasVindas({ nome: user.name, appUrl: base });
+          enviarEmail({ to: user.email, subject: t.subject, html: t.html, text: t.text }).catch(() => {});
+        },
+      },
     },
   },
 

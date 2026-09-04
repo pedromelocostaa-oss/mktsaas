@@ -11,6 +11,8 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { hashToken } from "@/lib/token";
 import { permitir } from "@/lib/rate-limit";
+import { enviarEmail } from "@/server/email/send";
+import { tmplAprovado, tmplAjustePedido } from "@/server/email/templates";
 
 const schema = z.object({
   decision: z.enum(["approve", "changes"]),
@@ -66,9 +68,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     },
   });
 
+  const post = await db.post.findUnique({
+    where: { id: review.postId },
+    select: {
+      organizationId: true,
+      title: true,
+      brandId: true,
+      createdById: true,
+    },
+  });
+  const autor = post
+    ? await db.user.findUnique({
+        where: { id: post.createdById },
+        select: { name: true, email: true },
+      })
+    : null;
+
   await db.auditLog.create({
     data: {
-      organizationId: (await db.post.findUnique({ where: { id: review.postId }, select: { organizationId: true } }))!.organizationId,
+      organizationId: post!.organizationId,
       actorId: null, // resposta vem de link público
       action: parsed.data.decision === "approve" ? "review.approved" : "review.changes",
       targetType: "post",
@@ -78,6 +96,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     },
   });
+
+  // Notifica o autor (fire-and-forget)
+  if (post && autor?.email) {
+    const base =
+      process.env.BETTER_AUTH_URL ??
+      process.env.NEXT_PUBLIC_APP_URL ??
+      "https://pauta-wheat.vercel.app";
+    const link = `${base}/${post.brandId}/calendario?post=${review.postId}`;
+    const t =
+      parsed.data.decision === "approve"
+        ? tmplAprovado({
+            autorNome: autor.name,
+            aprovadorNome: review.approverName,
+            postTitle: post.title,
+            link,
+          })
+        : tmplAjustePedido({
+            autorNome: autor.name,
+            aprovadorNome: review.approverName,
+            postTitle: post.title,
+            nota: parsed.data.note ?? "",
+            link,
+          });
+    enviarEmail({
+      to: autor.email,
+      subject: t.subject,
+      html: t.html,
+      text: t.text,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ ok: true, state: novoEstado });
 }
