@@ -28,6 +28,9 @@ model User {
   // Superadmin (operador da plataforma, não da conta do cliente).
   // Bootstrap: SET via SQL para o e-mail do fundador.
   isSuperAdmin   Boolean   @default(false)
+  // Preferências de aviso (docs/07). Null = tudo ligado.
+  // Formato: { approvals: bool, publishing: bool, shares: bool, connections: bool }
+  notifPrefs     Json?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -38,6 +41,7 @@ model User {
   improvements   Improvement[]
   votes          RoadmapVote[]
   postCollaborations PostCollaborator[]
+  notifications  Notification[]
 
   @@map("user")
   @@schema("pauta")
@@ -592,5 +596,43 @@ model OAuthState {
 
   @@index([expiresAt])
   @@map("oauth_state")
+  @@schema("pauta")
+}
+
+// ─────────────────────────────────────────────── notificações in-app
+
+/// Feed pessoal de eventos que a UI mostra no sininho do header.
+/// Não substitui e-mail — os dois canais coexistem, filtrados pela mesma
+/// preferência em User.notifPrefs.
+model Notification {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  kind           NotificationKind
+  title          String
+  body           String
+  href           String?
+  metadata       Json?
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notification")
+  @@schema("pauta")
+}
+
+enum NotificationKind {
+  APPROVAL_APPROVED
+  APPROVAL_CHANGES
+  APPROVAL_REQUESTED
+  POST_PUBLISHED
+  SHARE_OPENED
+  CONNECTION_EXPIRING
+  METRICS_COLLECTED
+  IMPROVEMENT_STATUS
+  TEAM_ACCEPTED
+
   @@schema("pauta")
 }

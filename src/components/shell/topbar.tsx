@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { criarIdeiaRapida } from "@/server/services/posts";
 import { useToast } from "@/components/ui/toast";
 import { ShareModal } from "@/components/share/share-modal";
+import { NotifBell } from "@/components/shell/notif-bell";
 import type { Network } from "@prisma/client";
 import { netMeta } from "@/lib/network";
 
@@ -207,6 +208,7 @@ export function TopBar({ currentBrand, brands, postsParaShare }: Props) {
         </div>
       </div>
 
+      <NotifBell />
       <Btn data-onboarding="btn-compartilhar" onClick={() => setShareOpen(true)}>
         Compartilhar
       </Btn>

@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { enviarEmail } from "@/server/email/send";
 import { autorizadoParaCron } from "@/lib/cron-auth";
 import { tmplVespera } from "@/server/email/templates";
+import { criarNotificacao, podeAvisar } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,20 +58,31 @@ export async function POST(req: Request) {
       const owners = c.brand.organization.members;
       const consequencia = `Se vencer, a coleta automática para e o histórico fica com um buraco que não dá para preencher depois.`;
       for (const m of owners) {
-        await enviarEmail({
-          to: m.user.email,
-          subject: `A conexão do ${netLabel} vence em ${dias} dia${dias === 1 ? "" : "s"}`,
-          text: [
-            `Olá, ${m.user.name || ""}`,
-            ``,
-            `A conexão do ${netLabel} da conta "${c.brand.name}" vence em ${dias} dia${dias === 1 ? "" : "s"}.`,
-            consequencia,
-            ``,
-            `Reconecte em Configurações → Redes conectadas.`,
-          ].join("\n"),
-          html: `<p>Olá, ${m.user.name || ""}</p><p>A conexão do <strong>${netLabel}</strong> da conta "<strong>${escape(c.brand.name)}</strong>" vence em ${dias} dia${dias === 1 ? "" : "s"}.</p><p>${consequencia}</p><p>Reconecte em Configurações → Redes conectadas.</p>`,
+        const canEmail = await podeAvisar(m.user.id, "CONNECTION_EXPIRING").catch(() => true);
+        if (canEmail) {
+          await enviarEmail({
+            to: m.user.email,
+            subject: `A conexão do ${netLabel} vence em ${dias} dia${dias === 1 ? "" : "s"}`,
+            text: [
+              `Olá, ${m.user.name || ""}`,
+              ``,
+              `A conexão do ${netLabel} da conta "${c.brand.name}" vence em ${dias} dia${dias === 1 ? "" : "s"}.`,
+              consequencia,
+              ``,
+              `Reconecte em Configurações → Redes conectadas.`,
+            ].join("\n"),
+            html: `<p>Olá, ${m.user.name || ""}</p><p>A conexão do <strong>${netLabel}</strong> da conta "<strong>${escape(c.brand.name)}</strong>" vence em ${dias} dia${dias === 1 ? "" : "s"}.</p><p>${consequencia}</p><p>Reconecte em Configurações → Redes conectadas.</p>`,
+          }).catch(() => {});
+          avisados++;
+        }
+        criarNotificacao({
+          userId: m.user.id,
+          organizationId: c.organizationId,
+          kind: "CONNECTION_EXPIRING",
+          title: `${netLabel} vence em ${dias} dia${dias === 1 ? "" : "s"}`,
+          body: `${c.brand.name} · ${consequencia}`,
+          href: `/${c.brandId}/configuracoes/redes`,
         }).catch(() => {});
-        avisados++;
       }
     }
   }
@@ -98,15 +110,26 @@ export async function POST(req: Request) {
       select: { name: true, email: true },
     });
     if (!autor?.email) continue;
-    const horaPt = p.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    const t = tmplVespera({
-      autorNome: autor.name,
-      postTitle: p.title,
-      horaPt,
-      link: `${base}/${p.brandId}/calendario?post=${p.id}`,
-    });
-    await enviarEmail({ to: autor.email, subject: t.subject, html: t.html, text: t.text }).catch(() => {});
-    avisadosVespera++;
+    const canEmail = await podeAvisar(p.createdById, "POST_PUBLISHED").catch(() => true);
+    if (canEmail) {
+      const horaPt = p.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const t = tmplVespera({
+        autorNome: autor.name,
+        postTitle: p.title,
+        horaPt,
+        link: `${base}/${p.brandId}/calendario?post=${p.id}`,
+      });
+      await enviarEmail({ to: autor.email, subject: t.subject, html: t.html, text: t.text }).catch(() => {});
+      avisadosVespera++;
+    }
+    criarNotificacao({
+      userId: p.createdById,
+      organizationId: p.organizationId,
+      kind: "POST_PUBLISHED",
+      title: `Amanhã: ${p.title}`,
+      body: `Agendado para ${p.scheduledAt.toLocaleString("pt-BR")}. Dá tempo de ajustar.`,
+      href: `/${p.brandId}/calendario?post=${p.id}`,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ avisados, avisadosVespera });

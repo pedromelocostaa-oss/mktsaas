@@ -47,13 +47,31 @@ export async function resolverShareLink(token: string) {
   return link;
 }
 
-/** Registra visualização — chamado uma vez por página pública (fire-and-forget). */
+/** Registra visualização — chamado uma vez por página pública (fire-and-forget).
+ *  Se for a PRIMEIRA abertura (viewCount ia de 0→1), notifica quem criou o link. */
 export async function registrarVisita(linkId: string) {
   try {
+    const prev = await db.shareLink.findUnique({
+      where: { id: linkId },
+      select: { viewCount: true, createdById: true, organizationId: true, kind: true },
+    });
     await db.shareLink.update({
       where: { id: linkId },
       data: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
     });
+    if (prev && prev.viewCount === 0) {
+      const { criarNotificacao } = await import("./notifications");
+      criarNotificacao({
+        userId: prev.createdById,
+        organizationId: prev.organizationId,
+        kind: "SHARE_OPENED",
+        title: "Cliente abriu seu link",
+        body:
+          prev.kind === "DASHBOARD"
+            ? "O relatório do painel foi aberto pela primeira vez."
+            : "As publicações compartilhadas foram abertas pela primeira vez.",
+      }).catch(() => {});
+    }
   } catch {
     // ignora — não queremos que uma falha de update quebre a página do cliente
   }

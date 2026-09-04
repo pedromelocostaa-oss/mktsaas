@@ -13,6 +13,7 @@ import { hashToken } from "@/lib/token";
 import { permitir } from "@/lib/rate-limit";
 import { enviarEmail } from "@/server/email/send";
 import { tmplAprovado, tmplAjustePedido } from "@/server/email/templates";
+import { criarNotificacao, podeAvisar } from "@/server/services/notifications";
 
 const schema = z.object({
   decision: z.enum(["approve", "changes"]),
@@ -97,33 +98,53 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     },
   });
 
-  // Notifica o autor (fire-and-forget)
-  if (post && autor?.email) {
+  // Notifica o autor (fire-and-forget). Passa pela preferência em ambos canais.
+  if (post) {
     const base =
       process.env.BETTER_AUTH_URL ??
       process.env.NEXT_PUBLIC_APP_URL ??
       "https://pauta-wheat.vercel.app";
     const link = `${base}/${post.brandId}/calendario?post=${review.postId}`;
-    const t =
-      parsed.data.decision === "approve"
-        ? tmplAprovado({
-            autorNome: autor.name,
-            aprovadorNome: review.approverName,
-            postTitle: post.title,
-            link,
-          })
-        : tmplAjustePedido({
-            autorNome: autor.name,
-            aprovadorNome: review.approverName,
-            postTitle: post.title,
-            nota: parsed.data.note ?? "",
-            link,
-          });
-    enviarEmail({
-      to: autor.email,
-      subject: t.subject,
-      html: t.html,
-      text: t.text,
+    const kind = parsed.data.decision === "approve" ? "APPROVAL_APPROVED" : "APPROVAL_CHANGES";
+    const autorizado = await podeAvisar(post.createdById, kind).catch(() => true);
+
+    if (autorizado && autor?.email) {
+      const t =
+        parsed.data.decision === "approve"
+          ? tmplAprovado({
+              autorNome: autor.name,
+              aprovadorNome: review.approverName,
+              postTitle: post.title,
+              link,
+            })
+          : tmplAjustePedido({
+              autorNome: autor.name,
+              aprovadorNome: review.approverName,
+              postTitle: post.title,
+              nota: parsed.data.note ?? "",
+              link,
+            });
+      enviarEmail({
+        to: autor.email,
+        subject: t.subject,
+        html: t.html,
+        text: t.text,
+      }).catch(() => {});
+    }
+
+    criarNotificacao({
+      userId: post.createdById,
+      organizationId: post.organizationId,
+      kind,
+      title:
+        parsed.data.decision === "approve"
+          ? `${review.approverName} aprovou`
+          : `${review.approverName} pediu ajuste`,
+      body:
+        parsed.data.decision === "approve"
+          ? `Já dá para agendar a publicação de "${post.title}".`
+          : parsed.data.note?.slice(0, 200) ?? "Abra o post para ver o que mudar.",
+      href: `/${post.brandId}/calendario?post=${review.postId}`,
     }).catch(() => {});
   }
 
